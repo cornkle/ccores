@@ -1,4 +1,4 @@
-from CCores import constants, wav
+import constants, wav
 import numpy as np
 from scipy.ndimage.measurements import label
 from scipy import ndimage
@@ -37,8 +37,17 @@ class dataset(object):
         """
         Filters clouds of set area threshold and prepares image for wavelet analysis via adjusting background temperature
         and smoothing cloud edges.
+        t: numpy array, cloud top temperature data
+        lon: 1d numpy array, longitude or x
+        lat: 1d numpy array, latitude or y
+        edge_smoothing: optional cloud edge smoothing via gaussian filter - can help in case of excessive core
+                        identification at cloud edges (default: False)
+        dynamic_background: optional dynamical background temperature according to coldest pixel in image -
+                            can help in case of excessive core identification at cloud edges (default: False)
+        min_area: optional minimum area threshold for identified clouds. If false, minimum is defined by the minimum
+                  core scale (default: False)
 
-        :return: cloud top temperatures with adjusted background temperature and optional smoothing
+        :return: filtered cloud top temperatures with adjusted background temperature
         """
 
         londiff = lon[0:-1]-lon[1::]
@@ -117,6 +126,13 @@ class dataset(object):
 
 
     def applyWavelet(self, ge_thresh=0, fill=0.01, le_thresh=None):
+        """
+
+        :param ge_thresh: greater-equal threshold for power filtering.
+        :param fill: fill value for filtering thresholds
+        :param le_thresh: less-equal threshold for power filtering.
+        :return: Wavelet coefficient and wavelet power attributes of the wavelet object.
+        """
 
         try:
             tir = self.image.copy()
@@ -140,6 +156,12 @@ class dataset(object):
 
 
     def scaleWeighting(self, wtype='sum', data_tag=''):
+        """
+
+        :param wtype: Defines method for wavelet power weighting and core identification
+        :param data_tag: Identifies input data if needed for wtype
+        :return: power from weighted scales
+        """
 
         if wtype not in constants.UTILS:
             print('Method type not found. Choose one of existing power weighting methods (UTILS in constants.py) or add a new one.')
@@ -154,6 +176,15 @@ class dataset(object):
 
 
     def to_dataarray(self, filepath=None, date=None, CLOBBER=False, names=None):
+        """
+
+        :param filepath: outpath for save file
+        :param date: optional datetime.datetime date for timestamp in data array
+        :param CLOBBER: if True, overwrites existing file
+        :param names: [str, str] format, gives custom names to power and thermal infrared (tir) data arrays.
+                      If False: ['power', 'tir']
+        :return: saves netcdf of xarray dataset with convective core power and original tir data
+        """
 
         new_savet = self.original.copy()
         isnan = np.isnan(new_savet)

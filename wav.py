@@ -3,7 +3,7 @@
 @author: C. Klein
 """
 import numpy as np
-from CCores import twod as w2d
+import twod as w2d
 
 class wavelet(object):
 

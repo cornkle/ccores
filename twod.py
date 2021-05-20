@@ -9,7 +9,7 @@ DISCLAIMER
     made. This routine is provided as is without any express or implied
     warranties whatsoever.
 AUTHOR
-    Sebastian Krieger
+    Sebastian Krieger, adapted by D Belusic & C Klein
     email: sebastian@nublia.com
 REVISION
     1 (2011-04-30 19:48 -3000)

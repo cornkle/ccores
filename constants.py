@@ -1,4 +1,4 @@
-from CCores import powerUtils as utils
+import powerUtils as utils
 
 def _create_dic(tc, tw, dx, dist, start, nb):
 
