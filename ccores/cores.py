@@ -1,4 +1,4 @@
-import constants, wav
+from ccores import constants, wav
 import numpy as np
 from scipy.ndimage.measurements import label
 from scipy import ndimage

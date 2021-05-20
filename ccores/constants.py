@@ -1,4 +1,5 @@
-import powerUtils as utils
+from ccores import powerUtils as utils
+
 
 def _create_dic(tc, tw, dx, dist, start, nb):
 
