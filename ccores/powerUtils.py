@@ -2,11 +2,151 @@
 import numpy as np
 from scipy import ndimage
 from scipy.ndimage.measurements import label
-import ipdb
-import matplotlib.pyplot as plt
+
+
+def find_power_nflics(coreObj):
+    """
+    THIS POWER FILTER IS CURRENTLY (20/05/21) RUNNING IN THE NFLICS NOWCASTING TOOL AT 5km RESOLUTION (MSG dataset)
+    Related dataset name: METEOSAT5K_vera (constants.py)
+
+    It was also tested for homogenisation across MFG and MSG datasets (accordingly applying MSG / MFG correction factors)
+
+    This routine sums up power values of all available scales and filters out areas below a defined power threshold.
+    :param wav: wavelet dictionary, output from standard wavelet routine
+    :param no_good: mask indicating cloud areas that are accepted for dominant power detection
+    :param area: 2d array indicating the number of pixels per MCS
+    :param dataset: string to define input dataset for threshold setting
+    :return: 2d array of dominant power areas, negative values indicate max power centres and give MCS area in
+             number of pixels (-200 at 5km resolution = MCS of 5000km2)
+
+    The power values for different datasets are not directly comparable. They would have to be normalised.
+    Can directly used for frequency analysis though.
+    """
+
+    dataset_dic = {    # cross-dataset correction factors at 5km grid. Purely empirical, sorry!
+
+        'MFG' : -17,
+        'MSG' : -8,
+        'GRIDSAT' : -20,
+        'neutral' : 0
+    }
+
+    print('Assuming Meteosat ' + str(coreObj.data_tag) +' dataset. If incorrect, please set explicit data_tag keyword for .scaleWeighting')
+
+    power_img = np.sum(coreObj.power, axis=0)
+    power_img[coreObj.invalid] = 0
+
+    try:
+        smaller = dataset_dic[coreObj.data_tag]
+    except KeyError:
+        print('data_tag keyword not found. Please choose from '+str(dataset_dic.keys()))
+        return
+
+    thresh_p = np.sum((coreObj.scales + smaller) ** .5) # set different power threshold adjustments to datasets
+    try:
+        power_img[(power_img < np.percentile(power_img[power_img > 1], 25)) | (power_img < (thresh_p))] = 0
+    except IndexError:
+        return
+
+    labels, numL = label(power_img)
+    u, inv = np.unique(labels, return_inverse=True)
+
+    for inds in u:
+        if inds == 0:
+            continue
+
+        arr = power_img.copy()
+        arr[np.where(labels != inds)] = 0
+        pos = np.argmax(arr)
+        power_img.flat[pos] = coreObj.area.flat[pos]*(-1)
+
+    return power_img
+
+
+
+
+def find_power_nflicsv2(coreObj):
+
+    """
+
+    THIS IS A NEWER VERSION OF THE NFLICS POWER FILTER THAT ALLOWS IDENTIFICATION OF VERY LARGE CORES WHILE
+    RETAINING SMALL SCALE SENSITIVITY
+    Tested at 3 and 5km with associated dataset names METEOSAT3K_veraLS and METEOSAT5K_veraLS (constants.py)
+
+    This routine identifies areas of dominant power by scale ranges.
+    :param wav: wavelet dictionary, output from standard wavelet routine
+    :param no_good: mask indicating cloud areas that are accepted for dominant power detection
+    :param area: 2d array indicating the number of pixels per MCS
+    :param dataset: string to define input dataset for threshold setting
+    :return: 2d array of dominant power areas, negative values indicate max power centres (-999)
+    The power values for different datasets are not directly comparable. They would have to be normalised.
+    Can directly used for frequency analysis though.
+    """
+
+    large_scale = 100
+    small_scale = 65
+    pos = np.where(coreObj.scales > large_scale) # position of 'large scales'
+    mpos = np.where(coreObj.scales <= small_scale)
+    #nbl = np.sum(coreObj.scales < large_scale) # number of scales above large scale definition
+
+    if np.max(coreObj.scales > large_scale):  # large scale threshold adjustment
+
+        power_img = np.sum(coreObj.power[0:np.max(mpos), :, :], axis=0)
+
+        thresh_ls = np.sum((coreObj.scales[np.min(pos)::])) ** .5 * len(pos[0])*1.5
+        thresh_ss = np.sum((coreObj.scales[0:np.max(mpos)])) ** .5 * len(mpos[0])
+        thresh_sl = np.sum((coreObj.scales[0:np.max(mpos)])) ** .5 * 0.5
+
+        #maskout =  np.sum(coreObj.power[0:np.min(pos), :, :], axis=0) < 1.5*nbl #np.sum(coreObj.power, axis=0)*0.025#1  #np.sum(coreObj.power[0:np.min(pos), :, :]<1, axis=0) > 0.8*nbl
+        ls = (np.sum(coreObj.power[np.min(pos)::, :, :], axis=0) > thresh_ls)
+        ss = (np.sum(coreObj.power[0:np.max(mpos), :, :], axis=0) > thresh_ss)
+        sl = (np.sum(coreObj.power[0:np.max(mpos), :, :], axis=0) > thresh_sl)
+
+        mask = (ls & sl) | ss  #ss |
+
+    else:
+        power_img = np.sum(coreObj.power, axis=0)
+        thresh_all = np.sum((coreObj.scales) ** .5) * len(mpos[0])
+        mask = power_img > thresh_all
+
+
+    power_img[coreObj.invalid] = 0
+
+    try:
+        power_img[((power_img < np.percentile(power_img[power_img > 1], 25)) | ~mask)] = 0
+    except IndexError:
+        return
+
+    labels, numL = label(power_img)
+    u, inv = np.unique(labels, return_inverse=True)
+
+
+    for inds in u:
+        arr = coreObj.image.copy()
+        if inds == 0:
+            continue
+
+        if np.sum(labels == inds) * coreObj.res**2 < (np.pi * (int(coreObj.scales[0])**2))/4:
+            power_img[np.where(labels==inds)] = 0
+            continue
+
+        arr[np.where(labels != inds)] = 0
+        pos = np.argmin(arr)
+        power_img.flat[pos] = coreObj.area.flat[pos]*(-1)
+
+    del arr
+
+    return power_img
+
+
+
+
+
 
 def find_power_sum(coreObj):
     """
+    Power weighting by scale with <35km small scale preference.
+
     This routine sums up power values of all available scales and identifies areas of dominant power.
     :param wav: wavelet dictionary, output from standard wavelet routine
     :param no_good: mask indicating cloud areas that are accepted for dominant power detection
@@ -63,9 +203,11 @@ def find_power_sum(coreObj):
 
 
 
+
 def find_power_individual(coreObj):
     """
-    This routine sums up power values of all available scales and identifies areas of dominant power.
+    Heavily tuned filter for set scale ranges. Used for testing purposes.
+
     :param wav: wavelet dictionary, output from standard wavelet routine
     :param no_good: mask indicating cloud areas that are accepted for dominant power detection
     :param area: 2d array indicating the number of pixels per MCS
@@ -99,7 +241,6 @@ def find_power_individual(coreObj):
     thresh_mm = np.sum(coreObj.scales[medium]) ** .5 * len(coreObj.scales[medium])*0.75 #*20
     thresh_ml = np.sum(coreObj.scales[medium]) ** .5 * 0.01
 
-    #maskout =  np.sum(coreObj.power[0:np.min(pos), :, :], axis=0) < 1.5*nbl #np.sum(coreObj.power, axis=0)*0.025#1  #np.sum(coreObj.power[0:np.min(pos), :, :]<1, axis=0) > 0.8*nbl
     ls = (plarge > thresh_ls)
     ss = (psmall > thresh_ss)
     sl = (psmall > thresh_sl)
@@ -170,7 +311,8 @@ def find_power_individual(coreObj):
 
 def find_power_dominant(coreObj):
     """
-    This routine identifies dominant scales and identifies areas of dominant power.
+    This routine identifies dominant scales <150km and identifies areas of dominant power across the power spectrum.
+
     :param wav: wavelet dictionary, output from standard wavelet routine
     :param no_good: mask indicating cloud areas that are accepted for dominant power detection
     :param area: 2d array indicating the number of pixels per MCS
@@ -220,9 +362,7 @@ def find_power_dominant(coreObj):
             continue
 
 
-
-        #wl[(wl < orig ** .5) | (wl - np.mean(vals) < np.std(vals))] = 0#1.3*
-        wl[(wl < 1) | (wl - np.mean(vals) <  np.std(vals))] = 0  # 1.3*
+        wl[(wl < 1) | (wl - np.mean(vals) <  np.std(vals))] = 0
         labels, numL = label(wl)
 
         for y, x in zip(yy, xx):
@@ -249,145 +389,11 @@ def find_power_dominant(coreObj):
 
 
 
-    # labels, numL = label(power_img)
-    # inds = np.unique(labels)
-    # #
-    # for ind in inds:
-    #     if ind == 0:
-    #         continue
-    #     arr = coreObj.image.copy()
-    #     arr[np.where(labels != ind)] = 0
-    #     #ipdb.set_trace()
-    #     counts = np.bincount(power_img[labels==ind].astype(int))
-    #     maj = np.argmax(counts)
-    #     power_img[labels==ind] = maj
-    #     pos = np.argmin(arr)
-    #     power_img.flat[pos] = coreObj.area.flat[pos] * (-1)
-    #
-    #     del arr
-
-    return power_img
-
-
-
-def find_power_nflics(coreObj):
-    """
-    This routine sums up power values of all available scales and identifies areas of dominant power.
-    :param wav: wavelet dictionary, output from standard wavelet routine
-    :param no_good: mask indicating cloud areas that are accepted for dominant power detection
-    :param area: 2d array indicating the number of pixels per MCS
-    :param dataset: string to define input dataset for threshold setting
-    :return: 2d array of dominant power areas, negative values indicate max power centres (-999)
-    The power values for different datasets are not directly comparable. They would have to be normalised.
-    Can directly used for frequency analysis though.
-    """
-    dataset_dic = {
-
-        'MFG' : -17,   # purely empirical, sorry
-        'MSG' : -8,
-        'GRIDSAT' : -20,
-        'neutral' : 0
-    }
-
-
-    power_img = np.sum(coreObj.power, axis=0)
-    power_img[coreObj.invalid] = 0
-
-    try:
-        smaller = dataset_dic[coreObj.data_tag]
-    except KeyError:
-        print('Data tag not found. Please choose from '+str(dataset_dic.keys()))
-        return
-
-    thresh_p = np.sum((coreObj.scales + smaller) ** .5) # set different power threshold adjustments to datasets
-    try:
-        power_img[(power_img < np.percentile(power_img[power_img > 1], 25)) | (power_img < (thresh_p))] = 0
-    except IndexError:
-        return
-
-    labels, numL = label(power_img)
-    u, inv = np.unique(labels, return_inverse=True)
-
-    for inds in u:
-        if inds == 0:
-            continue
-
-        arr = power_img.copy()
-        arr[np.where(labels != inds)] = 0
-        pos = np.argmax(arr)
-        power_img.flat[pos] = coreObj.area.flat[pos]*(-1)
-
     return power_img
 
 
 
 
-def find_power_nflicsv2(coreObj):
-    """
-    This routine sums up power values of all available scales and identifies areas of dominant power.
-    :param wav: wavelet dictionary, output from standard wavelet routine
-    :param no_good: mask indicating cloud areas that are accepted for dominant power detection
-    :param area: 2d array indicating the number of pixels per MCS
-    :param dataset: string to define input dataset for threshold setting
-    :return: 2d array of dominant power areas, negative values indicate max power centres (-999)
-    The power values for different datasets are not directly comparable. They would have to be normalised.
-    Can directly used for frequency analysis though.
-    """
-
-    large_scale = 100
-    small_scale = 65
-    pos = np.where(coreObj.scales > large_scale) # position of 'large scales'
-    mpos = np.where(coreObj.scales <= small_scale)
-    #nbl = np.sum(coreObj.scales < large_scale) # number of scales above large scale definition
-
-    if np.max(coreObj.scales > large_scale):  # large scale threshold adjustment
-
-        power_img = np.sum(coreObj.power[0:np.max(mpos), :, :], axis=0)
-
-        thresh_ls = np.sum((coreObj.scales[np.min(pos)::])) ** .5 * len(pos[0])*1.5
-        thresh_ss = np.sum((coreObj.scales[0:np.max(mpos)])) ** .5 * len(mpos[0])
-        thresh_sl = np.sum((coreObj.scales[0:np.max(mpos)])) ** .5 * 0.5
-
-        #maskout =  np.sum(coreObj.power[0:np.min(pos), :, :], axis=0) < 1.5*nbl #np.sum(coreObj.power, axis=0)*0.025#1  #np.sum(coreObj.power[0:np.min(pos), :, :]<1, axis=0) > 0.8*nbl
-        ls = (np.sum(coreObj.power[np.min(pos)::, :, :], axis=0) > thresh_ls)
-        ss = (np.sum(coreObj.power[0:np.max(mpos), :, :], axis=0) > thresh_ss)
-        sl = (np.sum(coreObj.power[0:np.max(mpos), :, :], axis=0) > thresh_sl)
-
-        mask = (ls & sl) | ss  #ss |
-
-    else:
-        power_img = np.sum(coreObj.power, axis=0)
-        thresh_all = np.sum((coreObj.scales) ** .5) * len(mpos[0])
-        mask = power_img > thresh_all
-
-
-    power_img[coreObj.invalid] = 0
-
-    try:
-        power_img[((power_img < np.percentile(power_img[power_img > 1], 25)) | ~mask)] = 0
-    except IndexError:
-        return
-
-    labels, numL = label(power_img)
-    u, inv = np.unique(labels, return_inverse=True)
-
-
-    for inds in u:
-        arr = coreObj.image.copy()
-        if inds == 0:
-            continue
-
-        if np.sum(labels == inds) * coreObj.res**2 < (np.pi * (int(coreObj.scales[0])**2))/4:
-            power_img[np.where(labels==inds)] = 0
-            continue
-
-        arr[np.where(labels != inds)] = 0
-        pos = np.argmin(arr)
-        power_img.flat[pos] = coreObj.area.flat[pos]*(-1)
-
-    del arr
-
-    return power_img
 
 
 

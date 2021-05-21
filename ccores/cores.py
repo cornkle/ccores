@@ -33,7 +33,7 @@ class dataset(object):
 
 
 
-    def read_img(self, t, lon, lat, edge_smoothing=False, dynamic_background=False, min_area = False):
+    def read_img(self, torig, lon, lat, edge_smoothing=False, dynamic_background=False, min_area = False):
         """
         Filters clouds of set area threshold and prepares image for wavelet analysis via adjusting background temperature
         and smoothing cloud edges.
@@ -54,7 +54,8 @@ class dataset(object):
         if not np.allclose(londiff, np.zeros_like(londiff)+londiff[0]):
             print('Please provide regular grid coordinates.')
 
-        self.original = t.copy()
+        self.original = torig
+        t = torig.copy()
 
         t[t >= self.Tcut] = 0
         t[np.isnan(t)] = 0
@@ -155,7 +156,7 @@ class dataset(object):
 
 
 
-    def scaleWeighting(self, wtype='sum', data_tag=''):
+    def scaleWeighting(self, wtype='sum', data_tag='MSG'):
         """
 
         :param wtype: Defines method for wavelet power weighting and core identification
