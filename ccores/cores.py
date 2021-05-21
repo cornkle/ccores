@@ -128,10 +128,10 @@ class dataset(object):
 
     def applyWavelet(self, ge_thresh=0, fill=0.01, le_thresh=None):
         """
-
-        :param ge_thresh: greater-equal threshold for power filtering.
+        Applies the wavelet functions and handles wavelet coefficient filtering.
+        :param ge_thresh: greater-equal threshold for coefficient filtering.
         :param fill: fill value for filtering thresholds
-        :param le_thresh: less-equal threshold for power filtering.
+        :param le_thresh: less-equal threshold for coefficient filtering.
         :return: Wavelet coefficient and wavelet power attributes of the wavelet object.
         """
 
@@ -158,7 +158,7 @@ class dataset(object):
 
     def scaleWeighting(self, wtype='sum', data_tag='MSG'):
         """
-
+         Accesses the wavelet power filtering utility functions.
         :param wtype: Defines method for wavelet power weighting and core identification
         :param data_tag: Identifies input data if needed for wtype
         :return: power from weighted scales
@@ -178,7 +178,7 @@ class dataset(object):
 
     def to_dataarray(self, filepath=None, date=None, CLOBBER=False, names=None):
         """
-
+        Optional data saving function. Saves wavelet power and storm-filtered tir to netCDF files.
         :param filepath: outpath for save file
         :param date: optional datetime.datetime date for timestamp in data array
         :param CLOBBER: if True, overwrites existing file
