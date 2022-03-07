@@ -1,5 +1,6 @@
 # CCores
-
+CCores is a package to extract convective cores from cloud top temperatures as provided by thermal-infrared imagery from geostationary satellites (e.g. Meteosat). Convective cores are defined here as convectively active areas of storms that have high likelihood for intense and extreme rain. The background of the wavelet approach is described in 
+Klein, C., Belušić, D. and Taylor, C. M.: Wavelet Scale Analysis of Mesoscale Convective Systems for Detecting Deep Convection From Infrared Imagery, J. Geophys. Res. Atmos., 123(6), 3035–3050, doi:10.1002/2017JD027432, 2018.
 
 To get started: 
 
