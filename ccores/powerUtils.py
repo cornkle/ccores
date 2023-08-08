@@ -63,6 +63,58 @@ def find_power_nflics(coreObj):
     return power_img
 
 
+def find_power_nflics3k(coreObj):
+    """
+   Similar to nflics operational, but with increased threshold for optimisation with nflics3k setup (~3km on native meteosat grid)
+
+    This routine sums up power values of all available scales and filters out areas below a defined power threshold.
+    :param wav: wavelet dictionary, output from standard wavelet routine
+    :param no_good: mask indicating cloud areas that are accepted for dominant power detection
+    :param area: 2d array indicating the number of pixels per MCS
+    :param dataset: string to define input dataset for threshold setting
+    :return: 2d array of dominant power areas, negative values indicate max power centres and give MCS area in
+             number of pixels (-200 at 5km resolution = MCS of 5000km2)
+
+    The power values for different datasets are not directly comparable. They would have to be normalised.
+    Can directly used for frequency analysis though.
+    """
+
+    power_img = np.sum(coreObj.power, axis=0)
+    power_img[coreObj.invalid] = 0
+
+    thresh_p = np.sum((coreObj.scales) ** .5)  * len(coreObj.scales)*0.25 # set different power threshold adjustments to datasets
+    print('power threshold', thresh_p)
+    try:
+        power_img[(power_img < np.percentile(power_img[power_img > 1], 25)) | (power_img < (thresh_p))] = 0
+    except IndexError:
+        return
+
+    labels, numL = label(power_img)
+    u, inv = np.unique(labels, return_inverse=True)
+
+    maxdic = {'lat' : [], 'lon' : [], 'area_pixels' : []}
+
+    for inds in u:
+        if inds == 0:
+            continue
+
+        arr = power_img.copy()
+
+        # remove cores that don't reach minimum wavelet scale representing noise.
+        if np.sum(labels == inds) * coreObj.res ** 2 < (np.pi * (int(coreObj.scales[0]) ** 2)) / 4:
+            power_img[np.where(labels == inds)] = 0
+            continue
+
+        arr[np.where(labels != inds)] = 0
+        pos = np.argmax(arr)
+        #power_img.flat[pos] = coreObj.area.flat[pos]*(-1)
+        if arr.flat[pos]  > 0:
+
+            maxdic['lat'].append(coreObj.lat.flat[pos])
+            maxdic['lon'].append(coreObj.lon.flat[pos])
+            maxdic['area_pixels'].append(coreObj.area.flat[pos])
+
+    return (power_img, maxdic)
 
 
 def find_power_nflicsv2(coreObj):
@@ -156,7 +208,7 @@ def find_power_sum(coreObj):
     Can directly used for frequency analysis though.
     """
 
-    power_img = coreObj.power
+    power_img = coreObj.power.copy()
     for inds in range(power_img.shape[0]):
 
 
@@ -173,10 +225,8 @@ def find_power_sum(coreObj):
             return slice * 0
 
     power_img = np.sum(power_img, axis=0)
-    try:
-        power_img[coreObj.invalid] = 0
-    except:
-        ipdb.set_trace()
+    power_img[coreObj.invalid] = 0
+
 
 
     labels, numL = label(power_img)
@@ -217,7 +267,7 @@ def find_power_individual(coreObj):
     """
 
 
-    wll = coreObj.power
+    wll = coreObj.power.copy()
 
     for ids in range(wll.shape[0]):
         arr = wll[ids, :, :]
@@ -231,7 +281,6 @@ def find_power_individual(coreObj):
     psmall = np.sum(wll[small,:,:], axis=0)
     pmed = np.sum(wll[medium,:,:], axis=0)
     plarge = np.sum(wll[large,:,:], axis=0)
-
     scalist = [coreObj.scales[small], coreObj.scales[medium], coreObj.scales[large]]
 
     thresh_ls = np.sum(coreObj.scales[large]) ** .5  *0.9#* len(coreObj.scales[large])*1.5
@@ -275,10 +324,9 @@ def find_power_individual(coreObj):
     power_img = np.stack([psmall, pmed, plarge], axis=0)
 
     for idds, pi in enumerate(power_img):
-        try:
-            pi[coreObj.invalid] = 0
-        except:
-            ipdb.set_trace()
+
+        pi[coreObj.invalid] = 0
+
 
         labels, numL = label(pi)
 

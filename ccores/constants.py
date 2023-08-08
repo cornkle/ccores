@@ -25,7 +25,7 @@ NAMES = {
     'METEOSAT5K': _create_dic(-40, -50, 5, 1 / 12., 15, 45),        # Klein et al. JGR-Atmos scale setup
     'METEOSAT5K_vera': _create_dic(-40, -50,5, 0.5, 25, 2),         # VERA dataset and NFLICS code
     'METEOSAT5K_veraLS': _create_dic(-40, -50,5, 0.5, 25, 4),       # 5km version of bigDomain dataset
-    'METEOSAT3K_veraLS': _create_dic(-40, -50,3, 0.48, 9, 9),       # bigDomain dataset
+    'METEOSAT3K_veraLS': _create_dic(-40, -50,3, 0.60, 12, 6),       # bigDomain dataset (9-130 km, nflicsv2 ["small scale"] / dominant)  | NFLICS nowcasting at 3k with nflics3k weighting
     'METEOSAT8K': _create_dic(-40, -50,8, 1 / 12., 24, 40),
     'METEOSAT10K': _create_dic(-40, -50, 10, 1 / 12., 30, 40),
     'GRIDSAT': _create_dic(-40, -50,8, 1 / 12., 24, 40),
@@ -37,6 +37,7 @@ UTILS = {
     'sum' : utils.find_power_sum,
     'ind' : utils.find_power_individual,
     'nflics' : utils.find_power_nflics,
+    'nflics3k': utils.find_power_nflics3k,
     'nflicsv2' : utils.find_power_nflicsv2,
     'dominant' : utils.find_power_dominant
 }

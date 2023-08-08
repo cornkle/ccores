@@ -41,7 +41,7 @@ class wavelet(object):
 
 
 
-    def calc_coeffs(self, data, le_thresh=None, ge_thresh=None, fill=0):
+    def calc_coeffs(self, data, le_thresh=None, ge_thresh=None, fill=0, normed='scale'):
         """
         Calculate pos/neg wavelet coefficients and scale-normalised (always positive) wavelet powers
         :param data: 2d array to decompose into scales
@@ -64,13 +64,19 @@ class wavelet(object):
 
         norm_power = (np.abs(wav_coeffs)) * (np.abs(wav_coeffs))  # squared wavelet coefficients
         scale_dummy = np.reshape(self.norm_scales, (len(self.norm_scales), 1, 1))
-        norm_power = norm_power / (scale_dummy * scale_dummy) # Normalized wavelet power spectrum
-        # Note: Liu et al 2007 JOAT suggest dividing by wavelet scale only - we emphasize small scales more.
-        # Normalise scales: norm_power / stddev
-        #
-        # for ids in range(norm_power.shape[0]):
-        #     arr = norm_power[ids,:,:]
-        #     out = arr / np.std(arr)
-        #     norm_power[ids,:,:] = out
+        if normed == 'scale':
+            norm_power = norm_power / (scale_dummy * scale_dummy) # Normalized wavelet power spectrum
+            # Note: Liu et al 2007 JOAT suggest dividing by wavelet scale only - we emphasize small scales more.
+        if normed == 'stddev':
+
+            for ids in range(norm_power.shape[0]):
+                arr = norm_power[ids,:,:]
+                out = arr / np.std(arr)
+                norm_power[ids,:,:] = out
+
+            for ids in range(wav_coeffs.shape[0]):
+                arr = wav_coeffs[ids,:,:]
+                out = arr / np.std(arr)
+                wav_coeffs[ids,:,:] = out
 
         return wav_coeffs_pure, norm_power

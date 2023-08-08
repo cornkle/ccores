@@ -3,7 +3,6 @@ import numpy as np
 from scipy.ndimage.measurements import label
 from scipy import ndimage
 import xarray as xr
-import ipdb
 import os
 
 class dataset(object):
@@ -126,7 +125,7 @@ class dataset(object):
 
 
 
-    def applyWavelet(self, ge_thresh=0, fill=0.01, le_thresh=None):
+    def applyWavelet(self, ge_thresh=0, fill=0.01, le_thresh=None, normed='scale'):
         """
         Applies the wavelet functions and handles wavelet coefficient filtering.
         :param ge_thresh: greater-equal threshold for coefficient filtering.
@@ -142,12 +141,15 @@ class dataset(object):
             return
 
 
+        print('Wavelet coefficients and power normed by:', normed, 'Possible tags: "scale", "stddev"')
+
+
         tir[tir > 0] = 0
         tir = tir - np.mean(tir)
 
         obj = wav.wavelet(self.res, self.dist, self.nb, start=self.start)
 
-        coeffsTIR, powerTIR = obj.calc_coeffs(tir, ge_thresh=ge_thresh, fill=fill, le_thresh=le_thresh)
+        coeffsTIR, powerTIR = obj.calc_coeffs(tir, ge_thresh=ge_thresh, fill=fill, le_thresh=le_thresh, normed=normed)
 
         self.power = powerTIR
         self.coeffs = coeffsTIR
@@ -172,11 +174,15 @@ class dataset(object):
 
         Sweighting = constants.UTILS[wtype]
         self.scale_weighted = Sweighting(self)
+        if len(self.scale_weighted)>1:
+            self.max_pos = self.scale_weighted[1]
+            self.scale_weighted = self.scale_weighted[0]
+            return (self.scale_weighted, self.max_pos)
+        else:
+            return self.scale_weighted
 
-        return self.scale_weighted
 
-
-    def to_dataarray(self, filepath=None, date=None, CLOBBER=False, names=None):
+    def to_dataarray(self, filepath=None, date=None, CLOBBER=False, names=None, scale_factor=False):
         """
         Optional data saving function. Saves wavelet power and storm-filtered tir to netCDF files.
         :param filepath: outpath for save file
@@ -191,9 +197,14 @@ class dataset(object):
         isnan = np.isnan(new_savet)
         new_savet[isnan] = 0
 
-        sfactor=100
+        if scale_factor:
+            sfactor=100
+            dtype = np.int16
+        else:
+            sfactor=1
+            dtype=np.int8
         try:
-            new_savet = (np.round(new_savet, 2) * sfactor).astype(np.int16)
+            new_savet = (np.round(new_savet, 2) * sfactor).astype(dtype)
         except TypeError:
             print('TIR data is None, DataArray conversion failed. Return')
             return
@@ -274,12 +285,13 @@ class dataset(object):
         ds[power] = power_da
         ds[tir] = tir_da
 
-        ds.attrs['radii'] = (np.floor(self.scales / 2. / np.float(self.res))).astype(np.uint8)
+        ds.attrs['radii'] = (np.floor(self.scales / 2. / float(self.res))).astype(np.uint8)
         ds.attrs['scales_rounded'] = np.round(self.scales).astype(np.uint8)
         ds.attrs['scales_original'] = self.scales
         ds.attrs['cutout_T'] = self.Tcut
         ds.attrs['cutout_minPixelNb'] = self.minPixel
         ds.attrs['scaling_factor'] = sfactor
+        ds.attrs['assumed_resolution'] = self.res
 
         if filepath:
 
