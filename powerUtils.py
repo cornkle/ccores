@@ -2,7 +2,7 @@
 import numpy as np
 from scipy import ndimage
 from scipy.ndimage.measurements import label
-
+import ipdb
 
 def find_power_nflics(coreObj):
     """
@@ -109,9 +109,13 @@ def find_power_nflics3k(coreObj):
         pos = np.argmax(arr)
         #power_img.flat[pos] = coreObj.area.flat[pos]*(-1)
         if arr.flat[pos]  > 0:
-
-            maxdic['lat'].append(coreObj.lat.flat[pos])
-            maxdic['lon'].append(coreObj.lon.flat[pos])
+            if coreObj.lat.ndim == 2:
+                maxdic['lat'].append(coreObj.lat.flat[pos])
+                maxdic['lon'].append(coreObj.lon.flat[pos])
+            else:
+                posy, posx = np.unravel_index(pos, arr.shape)
+                maxdic['lat'].append(coreObj.lat[posy])
+                maxdic['lon'].append(coreObj.lon[posx])
             maxdic['area_pixels'].append(coreObj.area.flat[pos])
 
     return (power_img, maxdic)

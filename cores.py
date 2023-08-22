@@ -174,7 +174,7 @@ class dataset(object):
 
         Sweighting = constants.UTILS[wtype]
         self.scale_weighted = Sweighting(self)
-        if len(self.scale_weighted)>1:
+        if isinstance(self.scale_weighted, tuple):
             self.max_pos = self.scale_weighted[1]
             self.scale_weighted = self.scale_weighted[0]
             return (self.scale_weighted, self.max_pos)
