@@ -57,6 +57,7 @@ class dataset(object):
         t = torig.copy()
 
         t[t >= self.Tcut] = 0
+        t[t <= -150] = 0
         t[np.isnan(t)] = 0
         outt = t.copy()
         print('outmin', np.nanmin(outt), np.nanmax(outt))
