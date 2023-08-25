@@ -243,14 +243,16 @@ class dataset(object):
                                                            'lat': latitudes, 'lon': longitudes},  # [np.newaxis, :]
                                         dims=['time', 'scales', 'lat', 'lon'])
                 except ValueError:
-                    ipdb.set_trace()
+                    print('Could not create xarray, return')
+                    return
 
             else:
                 try:
                     power_da = xr.DataArray(new_power[np.newaxis, :], coords={'time': date,'lat': latitudes, 'lon': longitudes},
                                         dims=['time', 'lat', 'lon'])
                 except ValueError:
-                    ipdb.set_trace()
+                    print('Could not create xarray, return')
+                    return
 
 
             tir_da = xr.DataArray(new_savet[np.newaxis, :], coords={'time': date, 'lat': latitudes, 'lon': longitudes},  # 'time': date,
@@ -266,7 +268,8 @@ class dataset(object):
                                                     'lat': latitudes, 'lon': longitudes},  # [np.newaxis, :]
                                             dims=['scales', 'lat', 'lon'])
                 except ValueError:
-                    ipdb.set_trace()
+                    print('Could not create xarray, return')
+                    return
             else:
 
                 power_da = xr.DataArray(new_power,

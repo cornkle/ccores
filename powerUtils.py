@@ -2,7 +2,6 @@
 import numpy as np
 from scipy import ndimage
 from scipy.ndimage.measurements import label
-import ipdb
 
 def find_power_nflics(coreObj):
     """
