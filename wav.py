@@ -4,6 +4,7 @@
 """
 import numpy as np
 from ccores import twod as w2d
+import ipdb
 
 
 class wavelet(object):
@@ -61,6 +62,7 @@ class wavelet(object):
 
         if ge_thresh!=None:
             wav_coeffs[np.real(wav_coeffs >= ge_thresh)] = fill
+
 
         norm_power = (np.abs(wav_coeffs)) * (np.abs(wav_coeffs))  # squared wavelet coefficients
         scale_dummy = np.reshape(self.norm_scales, (len(self.norm_scales), 1, 1))
